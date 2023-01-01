@@ -1,5 +1,4 @@
-# Ginloli Editor
-『銀髪合法黙示録（ぎんいろアポロリプス）』のコンテンツエディタ。
+# Learn Tauri
 
 ## Develop
 ```bash
