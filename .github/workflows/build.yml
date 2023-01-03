@@ -35,8 +35,8 @@ jobs:
               npm: process.env.NPM_VERSION,
               latest: process.env.LATEST_VERSION,
             })
-            console.info('package.jsonとCargo.tomlのバージョン更新をしたか確認してください')
-            if (`v${process.env.NPM_VERSION}` === process.env.LATEST_VERSION) throw new Error('リリース済みのバージョンです。')
+            core.notice('package.jsonとCargo.tomlのバージョン更新をしたか確認してください')
+            if (`v${process.env.NPM_VERSION}` === process.env.LATEST_VERSION) core.setFailed('リリース済みのバージョンです。')
             else return
 
   create-release:
