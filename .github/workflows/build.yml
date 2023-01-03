@@ -3,12 +3,16 @@ name: Packaging all build
 on:
   pull_request:
     types: [closed]
+  workflow_run:
+    workflows:
+      - "Checked Code"
+    types:
+      - "completed"
 
 jobs:
   create-release:
     if: github.event.pull_request.merged == true
     permissions: write-all
-    needs: check-version
     runs-on: ubuntu-20.04
     outputs:
       release_id: ${{ steps.create-release.outputs.result }}
