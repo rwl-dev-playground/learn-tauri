@@ -3,11 +3,6 @@ name: Packaging all build
 on:
   pull_request:
     types: [closed]
-  workflow_run:
-    workflows:
-      - "Checked Code"
-    types:
-      - "completed"
 
 jobs:
   create-release:
