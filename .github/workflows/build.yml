@@ -1,45 +1,12 @@
 name: Packaging all build
+
 on:
-  push:
-    branches:
-      - "main"
+  pull_request:
+    types: [closed]
 
 jobs:
-  check-version:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v3
-      - name: setup node
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-      - name: get npm version
-        run: echo "NPM_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
-      - name: get latest github release
-        id: get-latest-version
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const { data } = await github.rest.repos.listReleases({
-              owner: context.repo.owner,
-              repo: context.repo.repo
-            })
-            return data[0].tag_name
-      - name: config file version up check
-        uses: actions/github-script@v6
-        env:
-          LATEST_VERSION: ${{ steps.get-latest-version.outputs.result }}
-        with:
-          script: |
-            console.debug({
-              npm: process.env.NPM_VERSION,
-              latest: process.env.LATEST_VERSION,
-            })
-            core.notice('package.jsonとCargo.tomlのバージョン更新をしたか確認してください')
-            if (`"v${process.env.NPM_VERSION}"` === process.env.LATEST_VERSION) core.setFailed('リリース済みのバージョンです。')
-            else return
-
   create-release:
+    if: github.event.pull_request.merged == true
     permissions: write-all
     needs: check-version
     runs-on: ubuntu-20.04
