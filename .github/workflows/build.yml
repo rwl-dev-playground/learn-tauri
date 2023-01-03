@@ -20,98 +20,102 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const {data} = await github.rest.repos.listReleases({
+            const { data } = await github.rest.repos.listReleases({
               owner: context.repo.owner,
               repo: context.repo.repo
             })
+            return data[0].tag_name
+      - name: config file version up check
+        uses: actions/github-script@v6
+        env:
+          LATEST_VERSION: ${{ step.get-latest-version.outputs.result }}
+        with:
+          script: |
+            console.debug({
+              npm: process.env.NPM_VERSION,
+              latest: process.env.LATEST_VERSION,
+            })
+            console.info('package.jsonとCargo.tomlのバージョン更新をしたか確認してください')
+            if (`v${process.env.NPM_VERSION}` === process.env.LATEST_VERSION) throw new Error('リリース済みのバージョンです。')
+            else return
 
-            console.log({data: data[0].tag_name})
+  create-release:
+    permissions: write-all
+    runs-on: ubuntu-20.04
+    outputs:
+      release_id: ${{ steps.create-release.outputs.result }}
 
-            return data.data
-      # - name: config file version up check
-      #   uses: actions/github-script@v6
-      #   with:
-      #     script: |
-      #       if (`v${process.env.NPM_VERSION}` === )
+    steps:
+      - uses: actions/checkout@v3
+      - name: setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - name: get version
+        run: echo "PACKAGE_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+      - name: create release
+        id: create-release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: `v${process.env.PACKAGE_VERSION}`,
+              name: `Release v${process.env.PACKAGE_VERSION}`,
+              body: '以下のアセットの中からアプリケーションをダウンロードしてください',
+              draft: true,
+              prerelease: false
+            })
+            return data.id
 
-  # create-release:
-  #   permissions: write-all
-  #   runs-on: ubuntu-20.04
-  #   outputs:
-  #     release_id: ${{ steps.create-release.outputs.result }}
+  build-tauri:
+    permissions: write-all
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest]
 
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - name: setup node
-  #       uses: actions/setup-node@v3
-  #       with:
-  #         node-version: 16
-  #     - name: get version
-  #       run: echo "PACKAGE_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
-  #     - name: create release
-  #       id: create-release
-  #       uses: actions/github-script@v6
-  #       with:
-  #         script: |
-  #           const { data } = await github.rest.repos.createRelease({
-  #             owner: context.repo.owner,
-  #             repo: context.repo.repo,
-  #             tag_name: `v${process.env.PACKAGE_VERSION}`,
-  #             name: `Release v${process.env.PACKAGE_VERSION}`,
-  #             body: '以下のアセットの中からアプリケーションをダウンロードしてください',
-  #             draft: true,
-  #             prerelease: false
-  #           })
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+      - name: install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-20.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+      - name: install app dependencies and build it
+        run: yarn && yarn build
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          releaseId: ${{ needs.create-release.outputs.release_id }}
 
-  #           return data.id
+  publish-release:
+    permissions: write-all
+    runs-on: ubuntu-20.04
+    needs: [create-release, build-tauri]
 
-  # build-tauri:
-  #   permissions: write-all
-  #   needs: create-release
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       platform: [windows-latest]
-
-  #   runs-on: ${{ matrix.platform }}
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - name: setup node
-  #       uses: actions/setup-node@v3
-  #       with:
-  #         node-version: 16
-  #     - name: install Rust stable
-  #       uses: dtolnay/rust-toolchain@stable
-  #     - name: install dependencies (ubuntu only)
-  #       if: matrix.platform == 'ubuntu-20.04'
-  #       run: |
-  #         sudo apt-get update
-  #         sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
-  #     - name: install app dependencies and build it
-  #       run: yarn && yarn build
-  #     - uses: tauri-apps/tauri-action@v0
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #       with:
-  #         releaseId: ${{ needs.create-release.outputs.release_id }}
-
-  # publish-release:
-  #   permissions: write-all
-  #   runs-on: ubuntu-20.04
-  #   needs: [create-release, build-tauri]
-
-  #   steps:
-  #     - name: publish release
-  #       id: publish-release
-  #       uses: actions/github-script@v6
-  #       env:
-  #         release_id: ${{ needs.create-release.outputs.release_id }}
-  #       with:
-  #         script: |
-  #           github.rest.repos.updateRelease({
-  #             owner: context.repo.owner,
-  #             repo: context.repo.repo,
-  #             release_id: process.env.release_id,
-  #             draft: false,
-  #             prerelease: false
-  #           })
+    steps:
+      - name: publish release
+        id: publish-release
+        uses: actions/github-script@v6
+        env:
+          release_id: ${{ needs.create-release.outputs.release_id }}
+        with:
+          script: |
+            github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: process.env.release_id,
+              draft: false,
+              prerelease: false
+            })
