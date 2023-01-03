@@ -25,7 +25,7 @@ jobs:
               repo: context.repo.repo
             })
 
-            console.log({data: data.data})
+            console.log({data: data})
 
             return data.data
       # - name: config file version up check
