@@ -20,14 +20,14 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const data = await github.rest.repos.listReleases({
+            const {data} = await github.rest.repos.listReleases({
               owner: context.repo.owner,
               repo: context.repo.repo
             })
 
-            console.log({data})
+            console.log({data.data})
 
-            return data
+            return data.data
       # - name: config file version up check
       #   uses: actions/github-script@v6
       #   with:
