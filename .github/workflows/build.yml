@@ -28,7 +28,7 @@ jobs:
       - name: config file version up check
         uses: actions/github-script@v6
         env:
-          LATEST_VERSION: ${{ step.get-latest-version.outputs.result }}
+          LATEST_VERSION: ${{ steps.get-latest-version.outputs.result }}
         with:
           script: |
             console.debug({
@@ -41,6 +41,7 @@ jobs:
 
   create-release:
     permissions: write-all
+    needs: check-version
     runs-on: ubuntu-20.04
     outputs:
       release_id: ${{ steps.create-release.outputs.result }}
