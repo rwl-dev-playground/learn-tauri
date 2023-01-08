@@ -3,8 +3,6 @@ name: Checked Code
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  push:
-    branches: [main]
 
 jobs:
   check-version:
@@ -26,12 +24,16 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo
             })
-            return data[0].tag_name
+            return data.length === 0 ? '' : data[0].tag_name
       - name: config file version up check
         uses: actions/github-script@v6
         env:
           LATEST_VERSION: ${{ steps.get-latest-version.outputs.result }}
         with:
           script: |
+            core.debug({
+              current_version: process.env.LATEST_VERSION,
+              latest_version: `"v${process.env.NPM_VERSION}"`
+            })
             core.notice('package.jsonとCargo.tomlのバージョン更新をしたか確認してください')
             if (`"v${process.env.NPM_VERSION}"` === process.env.LATEST_VERSION) core.setFailed('リリース済みのバージョンです。')
