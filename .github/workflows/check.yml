@@ -2,7 +2,7 @@ name: Checked Code
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, closed]
 
 jobs:
   check-version:
