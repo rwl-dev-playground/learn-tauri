@@ -25,16 +25,32 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const { data } = await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: `v${process.env.PACKAGE_VERSION}`,
-              name: `Release v${process.env.PACKAGE_VERSION}`,
-              body: '以下のアセットの中からアプリケーションをダウンロードしてください',
-              draft: true,
-              prerelease: false
-            })
-            return data.id
+            const latestVersion = `v${process.env.PACKAGE_VERSION}`
+            const getCurrentVersion = () => {
+              const { data } = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              })
+              return data.length === 0 ? '' : data[0].tag_name
+            }
+            if (getCurrentVersion() !== latestVersion) {
+              const { data } = await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: latestVersion,
+                name: `Release ${latestVersion}`,
+                body: '以下のAssetsの中からダウンロードしてください。',
+                draft: true,
+                prerelease: false
+              })
+              return data.id
+            } else {
+              const { data } = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              })
+              return data[0].id
+            }
 
   build-tauri:
     permissions: write-all
