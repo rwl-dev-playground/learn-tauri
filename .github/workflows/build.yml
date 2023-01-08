@@ -1,8 +1,9 @@
 name: Packaging all build
 
 on:
-  pull_request:
-    types: [closed]
+  workflow_run:
+    workflows: ["Checked Code"]
+    types: [completed]
 
 jobs:
   create-release:
@@ -34,16 +35,7 @@ jobs:
               return data.length === 0 ? '' : data[0].tag_name
             }
             if (await getCurrentVersion() !== latestVersion) {
-              const { data } = await github.rest.repos.createRelease({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag_name: latestVersion,
-                name: `Release ${latestVersion}`,
-                body: '以下のAssetsの中からダウンロードしてください。',
-                draft: true,
-                prerelease: false
-              })
-              return data.id
+              core.setFailed('リリース済みのバージョンです。')
             } else {
               const { data } = await github.rest.repos.listReleases({
                 owner: context.repo.owner,
